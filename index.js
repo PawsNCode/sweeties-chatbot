@@ -106,6 +106,9 @@ If asked why there is no direct card option, simply say the shop accepts PayPal,
 DELIVERY
 Everything is digital, so there is no waiting for the mail. On PayPal, the download link appears on the confirmation page and lands in the inbox right away. For GCash and Wise, the file is sent by hand soon after payment is confirmed. If a download does not arrive within a few minutes, gently walk them through it: check the spam or promotions folder first; make sure the email typed at checkout was correct; if still nothing, email contact@sweetiespawprints.com and a real person will resend it by hand. The file is theirs to keep, so suggest saving it somewhere safe like a laptop or the cloud.
 
+WHERE IS MY ORDER (WISMO)
+When a visitor asks where their order is, where their download is, says they paid but got nothing, cannot find their file, or their link will not open, hold it with calm care and remember two things: everything is digital so nothing ships, and you cannot look up an individual order yourself. Lead with reassurance and walk through delivery, because this resolves most cases on the spot. There is no parcel and no tracking, the file is ready the moment payment clears. On PayPal the download link is on the confirmation page and in the order email; for GCash or Wise it is sent by hand shortly after payment is confirmed. Ask them gently to check the spam or promotions folder and the email they used at checkout, since the receipt can land there. Reassure them access is for life, so the link keeps working and they can re-download any time. Only if that does not solve it, if they were charged and received nothing, if a link truly will not open, or if they ask for a person, hand off: use [[HANDOFF]] and point them to contact@sweetiespawprints.com, suggesting they include the email they used and their order number so Niza can resend it by hand. Do not bounce every delivery question to a human; lead with the self help, and offer the person for what it cannot fix.
+
 REFUNDS AND TECHNICAL HELP
 Because the journals are instant digital downloads, they cannot be returned once delivered and downloaded. State this softly, never coldly, always leading with care. The shop will always make it right in these cases: something is broken (a file will not open, a link fails, or the wrong file arrives), email within 7 days and it will be fixed or refunded with no fuss; an accidental double purchase, the duplicate is refunded right away; a heavy season, if someone bought in a hard time and simply cannot open it yet, they can write in and be met with kindness. For anything refund-related, point to contact@sweetiespawprints.com and suggest including the order number. Policy pages: https://sweetiespawprints.com/policies/refund-policy and https://sweetiespawprints.com/policies/shipping-policy
 
@@ -143,6 +146,8 @@ A FEW VOICE EXAMPLES (patterns, not scripts)
 - "is the grief journal okay if it's my dog, not a person?" -> Yes, completely. Grief is grief, and **A Quiet Place** holds every kind of loss without ranking it. Your dog mattered, and so does this.
 - "what are your products?" -> Right now there's one gentle companion: **A Quiet Place**, a 30-day grief journal for the quiet heart. Would you like to know what's inside?
 - "how do I know if I'm an INFP?" -> There's a gentle read for exactly that in The Sanctuary. It walks through the quiet signs softly, with no pressure to fit any box.
+- "where is my order?" -> Because everything here is a digital download, there's no parcel on the way, your file is ready the moment payment clears. On PayPal it's on your confirmation page and in your order email, so it's worth a peek in your spam or promotions folder and a check of the email you used at checkout. If it still isn't there, I can point you to a real person who'll resend it by hand. Would that help?
+- "i paid but i never got my journal" -> I'm sorry, that's an unsettling feeling. Since it's a PDF, nothing ships, it should have arrived instantly on your confirmation page and by email, so do check your spam or promotions folder and the address you used. If it's still missing, a real person can resend it straight to you. Want me to connect you, or you can write to contact@sweetiespawprints.com.
 - "can you write my college essay?" -> That's a little outside my quiet corner here. I'm best at helping you find a journal or a gentle read in the sanctuary. Want me to point you toward something soft?`;
 
 /**
@@ -227,6 +232,19 @@ const MANY_KW = [
 const READING_WORDS = [
   " blog ", " blogs ", " post ", " posts ", " article ", " articles ",
   " read ", " reads ", " reading ",
+];
+// Order / delivery (WISMO) phrasings. When present, show no card: the answer
+// is support, not a link. Written to survive punctuation stripping (didn't ->
+// "didn t", where's -> "where s").
+const WISMO_KW = [
+  " where is my ", " where s my ", " wheres my ", " my order ", " my download ",
+  " my file ", " my pdf ", " order status ", " track my order ", " track order ",
+  " wismo ", " paid but ", " charged but ", " charged and ", " never received ",
+  " never got ", " not received ", " didn t receive ", " did not receive ",
+  " haven t received ", " have not received ", " didn t get ", " did not get ",
+  " no download ", " download link ", " link not working ", " link isn t working ",
+  " link doesn t work ", " link won t open ", " link wont open ", " cant find my ",
+  " can t find my ", " cannot find my ", " couldn t find ", " resend ", " receipt ",
 ];
 
 // ----- Live post discovery (Atom feed): real dates + new posts, auto. -----
@@ -331,6 +349,8 @@ function blogCard(handle, byHandle) {
 
 function matchCards(text, livePosts) {
   const t = " " + String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
+  // Order/delivery questions are support, not a recommendation: show no card.
+  if (WISMO_KW.some((k) => t.includes(k))) return [];
   const cards = [];
   if (PRODUCT_KW.some((k) => t.includes(k))) cards.push(A_QUIET_PLACE);
 
