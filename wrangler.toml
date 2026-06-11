@@ -1,5 +1,5 @@
 name = "sweeties-chatbot"
-main = "src/index.js"
+main = "index.js"
 compatibility_date = "2026-06-01"
 
 # The Anthropic API key is NOT stored here. Set it once as an encrypted secret:
