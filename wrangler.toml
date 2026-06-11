@@ -2,9 +2,8 @@ name = "sweeties-chatbot"
 main = "index.js"
 compatibility_date = "2026-06-01"
 
-# Transcript storage. Create the database in the Cloudflare dashboard
-# (Storage & Databases > D1), then paste its Database ID below.
+# Transcript storage (Cloudflare D1).
 [[d1_databases]]
 binding = "DB"
 database_name = "sweeties-chatbot-transcripts"
-database_id = "PASTE_YOUR_DATABASE_ID_HERE"
+database_id = "8f66baa0-8fe7-4e04-a970-1f7172343794"
