@@ -113,7 +113,7 @@ USING THE JOURNAL
 Print it at home (two pages fit on one A4 or US Letter sheet) or open the PDF in any annotator like GoodNotes, Notability, or Noteshelf and write with a finger or a stylus. The days are numbered but not tied to a calendar, so anyone can start when they are ready and skip a hard day without falling behind. There is no streak to break and no guilt for resting. What they write is completely private, theirs alone, and most note apps let you lock or password-protect a notebook. It is a lifetime-access download with no subscription and no expiry, so they can save it, back it up, reprint pages, or duplicate it digitally for a fresh start any time.
 
 BLOG RECOMMENDATIONS (The Sanctuary)
-When a visitor wants to read, feel understood, or learn about themselves, a row of tappable cards for the matching posts is added automatically below your message. Because of this, never type out a list of post titles yourself, and never paste a URL. If they ask for one topic, give one warm sentence and let the single card carry it. If they ask broadly, for example "show me all the blogs about INFPs", do not enumerate them: say something gentle like "Here are a few gentle reads from The Sanctuary that might speak to you" and stop, because the cards beneath you already show them. Keep it to one or two sentences either way. The doorways are: The INFP Sanctuary and The Sensitive Soul, and there is a blog home for everything else.
+When a visitor wants to read, feel understood, or learn about themselves, a row of tappable cards for the matching posts is added automatically below your message. Because of this, never type out a list of post titles yourself, and never paste a URL. If they ask for one topic, give one warm sentence and let the single card carry it. If they ask broadly, for example "show me all the blogs about INFPs", do not enumerate them: say something gentle like "Here are a few gentle reads from The Sanctuary that might speak to you" and stop, because the cards beneath you already show them. If they ask for a specific number, like three reads, the cards already honor that number, so you can simply say you have pulled a few for them without counting them out. If they ask what is new or recent, use the dated list of current posts you are given to name your newest one or two warmly. Keep it to one or two sentences either way. The doorways are: The INFP Sanctuary and The Sensitive Soul, and there is a blog home for everything else.
 A new post publishes every day, so this is a living list. Only ever share a link from the LIVE list below. Those are the only blog URLs that work right now. For any feeling that is not in the live list, or anything newer than it, do not guess or invent a link. Instead point the visitor to the blog home or the closest doorway above, and gently invite them to look around. Never paste a blog URL that is not in the live list, because unpublished posts will not open.
 
 LIVE posts, safe to share (match the feeling to the post):
@@ -172,29 +172,46 @@ A FEW VOICE EXAMPLES (patterns, not scripts)
  *   Creative block, cannot begin:                      https://sweetiespawprints.com/blogs/the-sanctuary/infp-creative-block-why-you-freeze
  */
 
-// Deterministic card matching. Given the visitor's latest message, decide which
-// product or blog cards to show, with no dependence on the model. Only LIVE
-// blog posts are listed here. Specific topics are checked before generic ones,
-// and the generic "infp" catch-all is last so it never steals a better match.
+// ---------------------------------------------------------------------------
+// Card matching. Decides which product/blog cards to show from the visitor's
+// message, with no dependence on the model. Topical matches come from the
+// keyword catalog below; live publish dates and any brand-new posts come from
+// the blog's Atom feed at runtime (cached, best effort).
+// ---------------------------------------------------------------------------
 const SANCTUARY = "https://sweetiespawprints.com/blogs/the-sanctuary/";
 const A_QUIET_PLACE = {
   type: "product",
   title: "A Quiet Place",
   url: "https://sweetiespawprints.com/products/a-quiet-place-grief-journal",
 };
+
+// Topic keywords per live post. Broad coverage so different questions surface
+// different posts. Scoring counts keyword hits, so the best-matching post wins.
 const BLOG_RULES = [
-  { kw: ["infp vs infj", "infp or infj", "infj"], title: "INFP vs INFJ: A Gentle Guide", handle: "infp-vs-infj-gentle-guide" },
-  { kw: ["highly sensitive", "hsp", "sensitive person", "too sensitive"], title: "What Is a Highly Sensitive Person?", handle: "what-is-a-highly-sensitive-person" },
-  { kw: ["sensory overload", "too loud", "overstimulated", "overstimulation", "world feels too loud"], title: "HSP Sensory Overload", handle: "hsp-sensory-overload-why-the-world-feels-too-loud" },
-  { kw: ["burnout", "burned out", "burnt out", "depleted", "exhausted"], title: "INFP Burnout Recovery", handle: "infp-burnout-recovery" },
-  { kw: ["feel too much", "feel so deeply", "feel deeply", "feel everything", "too much emotion"], title: "Why INFPs Feel So Deeply", handle: "why-infps-feel-so-deeply" },
-  { kw: ["lonely", "no friends", "find my people", "my people", "isolated", "no one gets me"], title: "The Lonely INFP", handle: "the-lonely-infp-finding-your-people" },
-  { kw: ["career", "careers", " job ", "what work", "what job", "right job"], title: "Best Careers for INFPs", handle: "best-careers-for-infps" },
-  { kw: ["infp woman", "infp female", "infp girl", "as a woman"], title: "The INFP Female Experience", handle: "infp-female-experience-quiet-strength" },
-  { kw: ["energy", "drained", "running on empty", "recharge", "manage my energy"], title: "Introvert Energy Management", handle: "introvert-energy-management" },
-  { kw: ["solitude", "alone time", "need space", "time alone", "crave being alone"], title: "Solitude for Sensitive Souls", handle: "introvert-solitude-sensitive-souls" },
-  { kw: ["inner world", "imagination", "vivid inner", "daydream"], title: "The INFP Inner World", handle: "infp-inner-world" },
-  { kw: ["infp"], title: "19 Quiet Signs You're an INFP", handle: "signs-you-are-an-infp" },
+  { handle: "infp-vs-infj-gentle-guide", title: "INFP vs INFJ: A Gentle Guide",
+    kw: ["infp vs infj", "infp or infj", "infj", "difference between infp", "am i infp or infj", "mistyped"] },
+  { handle: "what-is-a-highly-sensitive-person", title: "What Is a Highly Sensitive Person?",
+    kw: ["highly sensitive", "hsp", "sensitive person", "too sensitive", "very sensitive", "being sensitive", "i am sensitive", "emotionally sensitive"] },
+  { handle: "hsp-sensory-overload-why-the-world-feels-too-loud", title: "HSP Sensory Overload",
+    kw: ["sensory overload", "too loud", "overstimulated", "overstimulation", "world feels too loud", "overwhelmed by noise", "crowds", "bright lights", "too much going on"] },
+  { handle: "infp-burnout-recovery", title: "INFP Burnout Recovery",
+    kw: ["burnout", "burned out", "burnt out", "depleted", "exhausted", "cant cope", "spent"] },
+  { handle: "why-infps-feel-so-deeply", title: "Why INFPs Feel So Deeply",
+    kw: ["feel too much", "feel so deeply", "feel deeply", "feel everything", "too much emotion", "emotions are intense", "cry easily", "overwhelmed by feelings"] },
+  { handle: "the-lonely-infp-finding-your-people", title: "The Lonely INFP",
+    kw: ["lonely", "loneliness", "no friends", "find my people", "my people", "isolated", "no one gets me", "no one understands", "feel alone", "hard to connect"] },
+  { handle: "best-careers-for-infps", title: "Best Careers for INFPs",
+    kw: ["career", "careers", " job ", " jobs ", "what work", "what job", "right job", "work that fits", "best job", "do for work"] },
+  { handle: "infp-female-experience-quiet-strength", title: "The INFP Female Experience",
+    kw: ["infp woman", "infp women", "infp female", "infp girl", "as a woman", "female infp"] },
+  { handle: "introvert-energy-management", title: "Introvert Energy Management",
+    kw: ["energy", "drained", "running on empty", "recharge", "manage my energy", "low energy", "tired all the time", "social battery"] },
+  { handle: "introvert-solitude-sensitive-souls", title: "Solitude for Sensitive Souls",
+    kw: ["solitude", "alone time", "need space", "time alone", "crave being alone", "need to be alone", "want to be alone"] },
+  { handle: "infp-inner-world", title: "The INFP Inner World",
+    kw: ["inner world", "imagination", "imaginative", "vivid inner", "daydream", "daydreaming", "rich inner life", "live in my head", "fantasize"] },
+  { handle: "signs-you-are-an-infp", title: "19 Quiet Signs You're an INFP",
+    kw: ["infp", "am i an infp", "are an infp", "signs of an infp", "infp personality", "what is an infp"] },
 ];
 const PRODUCT_KW = [
   "product", "products", "what do you sell", "what do you have", "what do you offer",
@@ -202,64 +219,176 @@ const PRODUCT_KW = [
   "how much", "price", "cost", "grief", "grieving", "mourning", "bereave",
   "loss", "lost my", "lost someone", "passed away", "passed on",
 ];
-
-// Foundational INFP reads, used to fill out a carousel when a visitor asks
-// broadly (for example "show me all the blogs about INFPs"). Ordered from most
-// to least foundational. All are live.
-const CURATED_BLOGS = [
-  "signs-you-are-an-infp",
-  "infp-vs-infj-gentle-guide",
-  "why-infps-feel-so-deeply",
-  "the-lonely-infp-finding-your-people",
-  "best-careers-for-infps",
-  "what-is-a-highly-sensitive-person",
-  "infp-female-experience-quiet-strength",
-];
-// Signals that the visitor wants a few reads, not just one.
 const MANY_KW = [
   " all ", " blogs ", " posts ", " articles ", " reads ", " reading ",
   " list ", " several ", " few ", " recommend", " everything ", " other reads ",
-  " more reads ", " what do you have ",
+  " more reads ", " what do you have ", " some reads ",
+];
+const READING_WORDS = [
+  " blog ", " blogs ", " post ", " posts ", " article ", " articles ",
+  " read ", " reads ", " reading ",
 ];
 
-function blogCardByHandle(handle) {
-  const r = BLOG_RULES.find((x) => x.handle === handle);
-  return { type: "blog", title: r ? r.title : handle, url: SANCTUARY + handle };
+// ----- Live post discovery (Atom feed): real dates + new posts, auto. -----
+const BLOG_ATOM_URL = "https://sweetiespawprints.com/blogs/the-sanctuary.atom";
+const POSTS_TTL_MS = 30 * 60 * 1000;
+let postsCache = { at: 0, posts: null };
+
+async function getLivePosts() {
+  const now = Date.now();
+  if (postsCache.posts && now - postsCache.at < POSTS_TTL_MS) return postsCache.posts;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 2500);
+    const res = await fetch(BLOG_ATOM_URL, {
+      signal: ctrl.signal,
+      headers: { "user-agent": "sweetie-bot/1.0" },
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error("feed status " + res.status);
+    const posts = parseAtom(await res.text());
+    if (posts.length) {
+      postsCache = { at: now, posts };
+      return posts;
+    }
+  } catch (e) {
+    console.log("getLivePosts failed:", String(e));
+  }
+  return postsCache.posts; // serve stale cache rather than nothing
 }
 
-function matchCards(text) {
+function parseAtom(xml) {
+  const out = [];
+  const chunks = String(xml).split(/<entry[\s>]/).slice(1);
+  for (const c of chunks) {
+    const linkM = c.match(/<link[^>]*href="([^"]+)"/i);
+    if (!linkM || !/\/blogs\//.test(linkM[1])) continue;
+    const handle = linkM[1].split("?")[0].split("#")[0].replace(/\/$/, "").split("/").pop();
+    const pubM = c.match(/<published>([^<]+)<\/published>/i) || c.match(/<updated>([^<]+)<\/updated>/i);
+    const titleM = c.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    let title = titleM ? titleM[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1") : handle;
+    title = decodeEntities(title).trim();
+    out.push({ handle, title, date: pubM ? pubM[1].trim() : "" });
+  }
+  return out;
+}
+
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+}
+
+// Newest-first dated list, injected into the model so it can speak to recency.
+function buildDateContext(livePosts) {
+  if (!livePosts || !livePosts.length) return "";
+  const sorted = livePosts.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const lines = sorted.slice(0, 30).map(
+    (p) => "- " + p.title + " (" + (p.date ? p.date.slice(0, 10) : "date unknown") + ")"
+  );
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    "CURRENT BLOG STATE (live, today is " + today + "). The Sanctuary posts that are " +
+    "live right now, newest first:\n" + lines.join("\n") +
+    "\nIf a visitor asks what is new, recent, or your latest, name the ones at the top. " +
+    "If they ask what is oldest, name the ones at the bottom. A row of cards is still added " +
+    "for you automatically, so keep it to a sentence and never paste links."
+  );
+}
+
+// ----- Small helpers -----
+function shuffle(a) {
+  const r = a.slice();
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = r[i]; r[i] = r[j]; r[j] = tmp;
+  }
+  return r;
+}
+
+const NUM_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, couple: 2, few: 3, several: 4, handful: 4 };
+function parseCount(t) {
+  const dm = t.match(/\b([1-9])\b/);
+  if (dm) return Math.min(parseInt(dm[1], 10), 5);
+  for (const w in NUM_WORDS) {
+    if (t.includes(" " + w + " ")) return Math.min(NUM_WORDS[w], 5);
+  }
+  return null;
+}
+
+function blogCard(handle, byHandle) {
+  const r = BLOG_RULES.find((x) => x.handle === handle);
+  const p = byHandle && byHandle[handle];
+  return {
+    type: "blog",
+    title: (p && p.title) || (r && r.title) || handle,
+    url: SANCTUARY + handle,
+    date: (p && p.date) || "",
+  };
+}
+
+function matchCards(text, livePosts) {
   const t = " " + String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
   const cards = [];
   if (PRODUCT_KW.some((k) => t.includes(k))) cards.push(A_QUIET_PLACE);
 
-  // Every blog rule whose keywords appear, kept in rule order (specific first).
-  const matched = [];
-  for (const r of BLOG_RULES) {
-    if (r.kw.some((k) => t.includes(k))) {
-      matched.push({ type: "blog", title: r.title, url: SANCTUARY + r.handle });
-    }
-  }
+  const byHandle = {};
+  (livePosts || []).forEach((p) => { byHandle[p.handle] = p; });
+  const liveHandles = (livePosts && livePosts.length)
+    ? livePosts.map((p) => p.handle)
+    : BLOG_RULES.map((r) => r.handle);
+
+  // Score topical matches by number of keyword hits, best first.
+  const matchedHandles = BLOG_RULES
+    .map((r) => ({ handle: r.handle, score: r.kw.reduce((n, k) => n + (t.includes(k) ? 1 : 0), 0) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((x) => x.handle)
+    .filter((h) => liveHandles.includes(h)); // only recommend posts that are live
 
   const wantsMany = MANY_KW.some((k) => t.includes(k));
-  const hasReadingWord = [
-    " blog ", " blogs ", " post ", " posts ", " article ", " articles ",
-    " read ", " reads ", " reading ",
-  ].some((k) => t.includes(k));
+  const hasReadingWord = READING_WORDS.some((k) => t.includes(k));
+  const wantsRecent = /(recent|recently|latest|newest|new posts|just published|this week)/.test(t);
+  const wantsOldest = /(oldest|earliest|first post|original post)/.test(t);
+  const askedCount = parseCount(t);
 
-  if (wantsMany && (matched.length || hasReadingWord || /infp|sensitive|introvert/.test(t))) {
-    // Lead with the specific matches, then top up with foundational reads so a
-    // broad request returns a real carousel of at least a few cards.
-    const out = matched.slice();
-    for (const handle of CURATED_BLOGS) {
-      if (out.length >= 5) break;
-      const c = blogCardByHandle(handle);
-      if (!out.some((x) => x.url === c.url)) out.push(c);
+  const blogIntent =
+    wantsMany || hasReadingWord || matchedHandles.length || wantsRecent || wantsOldest;
+  if (!blogIntent) return cards.slice(0, 5);
+
+  // How many blog cards to show: honor a requested number, else a few for a
+  // broad/recency ask, else just one for a single focused topic.
+  let cap;
+  if (askedCount) cap = askedCount;
+  else if (wantsMany || wantsRecent || wantsOldest) cap = 5;
+  else cap = 1;
+
+  const byDateDesc = liveHandles.slice().sort((a, b) => {
+    const da = (byHandle[a] && byHandle[a].date) || "";
+    const db = (byHandle[b] && byHandle[b].date) || "";
+    return db.localeCompare(da);
+  });
+
+  let order;
+  if (wantsRecent) {
+    order = byDateDesc; // newest first
+  } else if (wantsOldest) {
+    order = byDateDesc.slice().reverse(); // oldest first
+  } else {
+    order = matchedHandles.slice();
+    if (wantsMany || cap > order.length) {
+      // Vary the filler so broad asks are not identical every time.
+      order = order.concat(shuffle(liveHandles.filter((h) => !order.includes(h))));
     }
-    out.forEach((c) => cards.push(c));
-  } else if (matched.length) {
-    cards.push(matched[0]); // a focused question gets one focused card
   }
 
+  const seen = {};
+  for (const h of order) {
+    if (cards.filter((c) => c.type === "blog").length >= cap) break;
+    if (seen[h]) continue;
+    seen[h] = 1;
+    cards.push(blogCard(h, byHandle));
+  }
   return cards.slice(0, 5);
 }
 
@@ -280,6 +409,14 @@ export default {
     }
     if (request.method === "GET" && url.pathname === "/admin/data") {
       return handleAdminData(url, env);
+    }
+    if (request.method === "GET" && url.pathname === "/admin/posts") {
+      const token = url.searchParams.get("token") || "";
+      if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      const posts = await getLivePosts();
+      return json({ count: posts ? posts.length : 0, posts: posts || [] });
     }
 
     if (request.method !== "POST") {
@@ -309,6 +446,11 @@ export default {
       .slice(-MAX_HISTORY);
 
     try {
+      // Live blog posts (cached, best effort). Powers date-aware replies and
+      // gives the matcher real publish dates. Null if the feed is unreachable.
+      const livePosts = await getLivePosts();
+      const dateContext = buildDateContext(livePosts);
+
       const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -325,6 +467,7 @@ export default {
               text: SYSTEM_PROMPT,
               cache_control: { type: "ephemeral" },
             },
+            ...(dateContext ? [{ type: "text", text: dateContext }] : []),
           ],
           messages: cleaned,
         }),
@@ -365,7 +508,7 @@ export default {
       let cards = [];
       if (!crisis && !handoff) {
         const lastUser = [...cleaned].reverse().find((m) => m.role === "user");
-        cards = matchCards(lastUser ? lastUser.content : "");
+        cards = matchCards(lastUser ? lastUser.content : "", livePosts);
       }
 
       // Hard guarantee: no em dashes ever reach the visitor. Replace with a
