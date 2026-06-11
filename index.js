@@ -321,7 +321,9 @@ function blogCard(handle, byHandle) {
   const p = byHandle && byHandle[handle];
   return {
     type: "blog",
-    title: (p && p.title) || (r && r.title) || handle,
+    // Prefer the short, card-friendly label; fall back to the live feed title
+    // for any newly published post not yet in the catalog.
+    title: (r && r.title) || (p && p.title) || handle,
     url: SANCTUARY + handle,
     date: (p && p.date) || "",
   };
