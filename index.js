@@ -420,6 +420,9 @@ export default {
       const posts = await getLivePosts();
       return json({ count: posts ? posts.length : 0, posts: posts || [] });
     }
+    if (request.method === "POST" && url.pathname === "/admin/delete") {
+      return handleAdminDelete(request, env);
+    }
 
     if (request.method !== "POST") {
       return json({ error: "Method not allowed" }, 405);
@@ -656,6 +659,38 @@ function toCSV(rows) {
   return lines.join("\r\n");
 }
 
+async function handleAdminDelete(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
+  const token = body && body.token ? String(body.token) : "";
+  if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) {
+    return json({ error: "Unauthorized" }, 401);
+  }
+  if (!env.DB) return json({ error: "No database bound" }, 500);
+  try {
+    await ensureSchema(env);
+    let res;
+    if (body.all === true) {
+      res = await env.DB.prepare("DELETE FROM messages").run();
+    } else if (body.conversation_id) {
+      res = await env.DB
+        .prepare("DELETE FROM messages WHERE conversation_id = ?")
+        .bind(String(body.conversation_id))
+        .run();
+    } else {
+      return json({ error: "Nothing to delete" }, 400);
+    }
+    const deleted = (res && res.meta && res.meta.changes) || 0;
+    return json({ ok: true, deleted });
+  } catch (e) {
+    return json({ error: "Delete failed", detail: String(e) }, 500);
+  }
+}
+
 const ADMIN_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -674,6 +709,11 @@ const ADMIN_HTML = `<!doctype html>
   button,.btn{background:var(--m);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block}
   button:hover,.btn:hover{background:var(--f)}
   .btn.ghost{background:#fff;color:var(--m);border:1px solid var(--m)}
+  .btn.danger{background:#fff;color:#a11;border:1px solid #e7a3a3}
+  .btn.danger:hover{background:#fde2e2}
+  .delbtn{background:none;border:1px solid #e7a3a3;color:#a11;font-size:11px;padding:3px 9px;border-radius:8px;cursor:pointer}
+  .delbtn:hover{background:#fde2e2}
+  .rightgrp{display:flex;gap:8px;align-items:center}
   #exports{display:none;gap:10px}
   #status{padding:10px 24px;font-size:13px;color:var(--gray)}
   main{padding:8px 24px 60px;max-width:860px;margin:0 auto}
@@ -700,6 +740,7 @@ const ADMIN_HTML = `<!doctype html>
   <div id="exports">
     <a id="exportCsv" class="btn ghost" target="_blank" rel="noopener">Export CSV</a>
     <a id="exportJson" class="btn ghost" target="_blank" rel="noopener">Export JSON</a>
+    <button id="deleteAll" class="btn danger">Delete all</button>
   </div>
 </div>
 <div id="status"></div>
@@ -710,6 +751,40 @@ const ADMIN_HTML = `<!doctype html>
   function setStatus(t) { $('#status').textContent = t; }
   $('#load').addEventListener('click', load);
   $('#token').addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); });
+  $('#deleteAll').addEventListener('click', deleteAll);
+  async function deleteConvo(id, cardEl) {
+    if (!confirm('Permanently delete this conversation? It will be removed from the database and cannot be undone.')) return;
+    try {
+      var res = await fetch('/admin/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: tok(), conversation_id: id })
+      });
+      if (res.status === 401) { setStatus('Token did not match. Reload and try again.'); return; }
+      var data = await res.json();
+      if (data && data.ok) {
+        if (cardEl && cardEl.remove) cardEl.remove();
+        setStatus('Deleted ' + (data.deleted || 0) + ' messages.');
+      } else { setStatus('Delete failed.'); }
+    } catch (e) { setStatus('Error: ' + e); }
+  }
+  async function deleteAll() {
+    if (!confirm('Delete ALL conversations permanently? This cannot be undone.')) return;
+    if (!confirm('Are you absolutely sure? Every transcript will be erased from the database.')) return;
+    try {
+      var res = await fetch('/admin/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: tok(), all: true })
+      });
+      if (res.status === 401) { setStatus('Token did not match. Reload and try again.'); return; }
+      var data = await res.json();
+      if (data && data.ok) {
+        $('#convos').innerHTML = '';
+        setStatus('Deleted everything (' + (data.deleted || 0) + ' messages).');
+      } else { setStatus('Delete failed.'); }
+    } catch (e) { setStatus('Error: ' + e); }
+  }
   async function load() {
     var token = tok();
     if (!token) { setStatus('Enter your admin token first.'); return; }
@@ -743,8 +818,13 @@ const ADMIN_HTML = `<!doctype html>
       var when = msgs[0].created_at ? new Date(msgs[0].created_at).toLocaleString() : 'unknown time';
       left.textContent = when + '  -  ' + String(id).slice(0, 8);
       h.appendChild(left);
-      if (hasCrisis) { var b = document.createElement('span'); b.className = 'badge crisis'; b.textContent = 'crisis'; h.appendChild(b); }
-      else if (hasHandoff) { var b2 = document.createElement('span'); b2.className = 'badge handoff'; b2.textContent = 'handoff'; h.appendChild(b2); }
+      var right = document.createElement('span'); right.className = 'rightgrp';
+      if (hasCrisis) { var b = document.createElement('span'); b.className = 'badge crisis'; b.textContent = 'crisis'; right.appendChild(b); }
+      else if (hasHandoff) { var b2 = document.createElement('span'); b2.className = 'badge handoff'; b2.textContent = 'handoff'; right.appendChild(b2); }
+      var del = document.createElement('button'); del.className = 'delbtn'; del.textContent = 'Delete';
+      del.addEventListener('click', function () { deleteConvo(id, card); });
+      right.appendChild(del);
+      h.appendChild(right);
       card.appendChild(h);
       msgs.forEach(function (m) {
         var t = document.createElement('div'); t.className = 'turn';
