@@ -264,10 +264,24 @@ function matchCards(text) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders() });
     }
+
+    const url = new URL(request.url);
+
+    // Private transcript viewer and export, protected by the ADMIN_TOKEN secret.
+    if (request.method === "GET" && url.pathname === "/admin") {
+      return new Response(ADMIN_HTML, {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+    if (request.method === "GET" && url.pathname === "/admin/data") {
+      return handleAdminData(url, env);
+    }
+
     if (request.method !== "POST") {
       return json({ error: "Method not allowed" }, 405);
     }
@@ -368,6 +382,25 @@ export default {
         handoff = true;
       }
 
+      // Save this turn to the transcript log. Best effort and non-blocking via
+      // waitUntil, so it can never delay or break the visitor's reply.
+      const conversationId =
+        typeof body.conversation_id === "string" && body.conversation_id.trim()
+          ? body.conversation_id.trim().slice(0, 80)
+          : "unknown";
+      const page = typeof body.page === "string" ? body.page.slice(0, 300) : "";
+      const lastUserMsg = [...cleaned].reverse().find((m) => m.role === "user");
+      ctx.waitUntil(
+        saveTurn(env, {
+          conversationId,
+          page,
+          userText: lastUserMsg ? lastUserMsg.content : "",
+          reply,
+          crisis,
+          handoff,
+        })
+      );
+
       return json({ reply, handoff, crisis, cards });
     } catch (err) {
       return json({ error: "Server error", detail: String(err) }, 500);
@@ -389,3 +422,196 @@ function json(obj, status = 200) {
     headers: { "content-type": "application/json", ...corsHeaders() },
   });
 }
+
+// ====================================================================
+// Transcript storage (Cloudflare D1) + private admin viewer / export.
+// All of this is additive and best effort: if the database is not bound
+// or a write fails, the chat above still works untouched.
+// ====================================================================
+
+let schemaReady = false;
+async function ensureSchema(env) {
+  if (schemaReady || !env.DB) return;
+  await env.DB.batch([
+    env.DB.prepare(
+      "CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT, role TEXT, content TEXT, crisis INTEGER DEFAULT 0, handoff INTEGER DEFAULT 0, page TEXT, created_at TEXT)"
+    ),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_conv ON messages(conversation_id)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_created ON messages(created_at)"),
+  ]);
+  schemaReady = true;
+}
+
+async function saveTurn(env, t) {
+  if (!env.DB) return; // No database bound yet: skip quietly.
+  try {
+    await ensureSchema(env);
+    const now = new Date().toISOString();
+    const ins =
+      "INSERT INTO messages (conversation_id, role, content, crisis, handoff, page, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const stmts = [];
+    if (t.userText) {
+      stmts.push(
+        env.DB.prepare(ins).bind(t.conversationId, "user", t.userText, 0, 0, t.page, now)
+      );
+    }
+    if (t.reply) {
+      stmts.push(
+        env.DB
+          .prepare(ins)
+          .bind(t.conversationId, "assistant", t.reply, t.crisis ? 1 : 0, t.handoff ? 1 : 0, t.page, now)
+      );
+    }
+    if (stmts.length) await env.DB.batch(stmts);
+  } catch (e) {
+    // Never let logging affect the conversation.
+    console.log("saveTurn failed:", String(e));
+  }
+}
+
+async function handleAdminData(url, env) {
+  const token = url.searchParams.get("token") || "";
+  if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) {
+    return json({ error: "Unauthorized" }, 401);
+  }
+  if (!env.DB) return json({ error: "No database bound" }, 500);
+  try {
+    await ensureSchema(env);
+  } catch (e) {}
+  let rows = [];
+  try {
+    const res = await env.DB.prepare(
+      "SELECT id, conversation_id, role, content, crisis, handoff, page, created_at FROM messages ORDER BY conversation_id, id ASC LIMIT 10000"
+    ).all();
+    rows = res.results || [];
+  } catch (e) {
+    return json({ error: "Query failed", detail: String(e) }, 500);
+  }
+  const format = (url.searchParams.get("format") || "json").toLowerCase();
+  if (format === "csv") {
+    return new Response(toCSV(rows), {
+      status: 200,
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": 'attachment; filename="sweetie-transcripts.csv"',
+      },
+    });
+  }
+  return new Response(JSON.stringify(rows, null, 2), {
+    status: 200,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+function toCSV(rows) {
+  const cols = ["id", "conversation_id", "created_at", "role", "content", "crisis", "handoff", "page"];
+  const esc = (v) => '"' + (v === null || v === undefined ? "" : String(v)).replace(/"/g, '""') + '"';
+  const lines = [cols.join(",")];
+  for (const r of rows) lines.push(cols.map((c) => esc(r[c])).join(","));
+  return lines.join("\r\n");
+}
+
+const ADMIN_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sweetie - Conversation Transcripts</title>
+<style>
+  :root{ --m:#801d5c; --f:#c02e80; --l:#fff4fb; --ink:#444; --gray:#9a8f96; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:#faf3f8;color:var(--ink)}
+  header{background:linear-gradient(145deg,var(--m),var(--f));color:#fff;padding:20px 24px}
+  header h1{margin:0;font-size:20px;font-weight:600}
+  header p{margin:4px 0 0;opacity:.85;font-size:13px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:16px 24px;background:#fff;border-bottom:1px solid #f0dce8}
+  input[type=password]{flex:1;min-width:200px;padding:10px 12px;border:1px solid #e6cfe0;border-radius:10px;font-size:14px}
+  button,.btn{background:var(--m);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;text-decoration:none;display:inline-block}
+  button:hover,.btn:hover{background:var(--f)}
+  .btn.ghost{background:#fff;color:var(--m);border:1px solid var(--m)}
+  #exports{display:none;gap:10px}
+  #status{padding:10px 24px;font-size:13px;color:var(--gray)}
+  main{padding:8px 24px 60px;max-width:860px;margin:0 auto}
+  .convo{background:#fff;border:1px solid #f0dce8;border-radius:14px;margin:14px 0;overflow:hidden}
+  .convo h3{margin:0;padding:12px 16px;font-size:13px;background:var(--l);border-bottom:1px solid #f0dce8;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--m)}
+  .badge{font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600}
+  .badge.crisis{background:#fde2e2;color:#a11}
+  .badge.handoff{background:#e6e0fb;color:#534b8a}
+  .turn{padding:10px 16px;border-top:1px solid #f7ecf3}
+  .turn:first-child{border-top:none}
+  .who{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray);margin-bottom:3px}
+  .who.user{color:var(--f)}
+  .content{font-size:14px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sweetie - Conversation Transcripts</h1>
+  <p>Private. Enter your admin token to view and export.</p>
+</header>
+<div class="bar">
+  <input id="token" type="password" placeholder="Admin token" autocomplete="off" />
+  <button id="load">Load conversations</button>
+  <div id="exports">
+    <a id="exportCsv" class="btn ghost" target="_blank" rel="noopener">Export CSV</a>
+    <a id="exportJson" class="btn ghost" target="_blank" rel="noopener">Export JSON</a>
+  </div>
+</div>
+<div id="status"></div>
+<main id="convos"></main>
+<script>
+  var $ = function (s) { return document.querySelector(s); };
+  function tok() { return $('#token').value.trim(); }
+  function setStatus(t) { $('#status').textContent = t; }
+  $('#load').addEventListener('click', load);
+  $('#token').addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); });
+  async function load() {
+    var token = tok();
+    if (!token) { setStatus('Enter your admin token first.'); return; }
+    setStatus('Loading...');
+    try {
+      var res = await fetch('/admin/data?format=json&token=' + encodeURIComponent(token));
+      if (res.status === 401) { setStatus('That token did not match. Try again.'); return; }
+      if (!res.ok) { setStatus('Could not load (status ' + res.status + ').'); return; }
+      var rows = await res.json();
+      render(rows);
+      $('#exportCsv').href = '/admin/data?format=csv&token=' + encodeURIComponent(token);
+      $('#exportJson').href = '/admin/data?format=json&token=' + encodeURIComponent(token);
+      $('#exports').style.display = 'flex';
+    } catch (e) { setStatus('Error: ' + e); }
+  }
+  function render(rows) {
+    var groups = {};
+    rows.forEach(function (r) { (groups[r.conversation_id] = groups[r.conversation_id] || []).push(r); });
+    var ids = Object.keys(groups).sort(function (a, b) {
+      return String(groups[b][0].created_at).localeCompare(String(groups[a][0].created_at));
+    });
+    setStatus(ids.length + ' conversation' + (ids.length === 1 ? '' : 's') + ', ' + rows.length + ' messages.');
+    var wrap = $('#convos'); wrap.innerHTML = '';
+    ids.forEach(function (id) {
+      var msgs = groups[id];
+      var hasCrisis = msgs.some(function (m) { return m.crisis; });
+      var hasHandoff = msgs.some(function (m) { return m.handoff; });
+      var card = document.createElement('div'); card.className = 'convo';
+      var h = document.createElement('h3');
+      var left = document.createElement('span');
+      var when = msgs[0].created_at ? new Date(msgs[0].created_at).toLocaleString() : 'unknown time';
+      left.textContent = when + '  -  ' + String(id).slice(0, 8);
+      h.appendChild(left);
+      if (hasCrisis) { var b = document.createElement('span'); b.className = 'badge crisis'; b.textContent = 'crisis'; h.appendChild(b); }
+      else if (hasHandoff) { var b2 = document.createElement('span'); b2.className = 'badge handoff'; b2.textContent = 'handoff'; h.appendChild(b2); }
+      card.appendChild(h);
+      msgs.forEach(function (m) {
+        var t = document.createElement('div'); t.className = 'turn';
+        var who = document.createElement('div'); who.className = 'who ' + (m.role === 'user' ? 'user' : '');
+        who.textContent = m.role === 'user' ? 'Visitor' : 'Sweetie';
+        var c = document.createElement('div'); c.className = 'content'; c.textContent = m.content;
+        t.appendChild(who); t.appendChild(c);
+        card.appendChild(t);
+      });
+      wrap.appendChild(card);
+    });
+  }
+</script>
+</body>
+</html>`;
