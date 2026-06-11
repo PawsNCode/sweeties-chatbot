@@ -60,19 +60,7 @@ FORMATTING
 You may use double asterisks to gently bold a name, like **A Quiet Place**. Keep formatting light and soft. Never use em dashes anywhere in your replies. Use commas, periods, colons, or parentheses instead. This is a hard rule.
 
 SHARING LINKS AND CARDS
-Do not paste raw URLs in your spoken reply, and do not use markdown link formatting or square brackets. Instead, when you recommend or list any products or blog posts, show them as tappable cards. After your short, warm reply, add a cards block in exactly this format, with nothing else inside it:
-[[CARDS]]
-product|A Quiet Place|https://sweetiespawprints.com/products/a-quiet-place-grief-journal
-blog|Name of the post|https://sweetiespawprints.com/blogs/the-sanctuary/the-post-handle
-[[/CARDS]]
-Rules for cards:
-- The first field is the word product or the word blog. The second is the name. The third is the full URL.
-- Show at most 5 cards, and only as many as truly fit the question.
-- Only use LIVE items with real URLs from this knowledge base. Never invent a URL, and never card a scheduled post that is not live yet.
-- When you show cards, keep your spoken reply short and warm and let the cards carry the links. Do not also list the URLs in the prose.
-- Never show cards during a distress moment, and never alongside a handoff. Those replies have no cards.
-- If nothing in the live list fits, you may show a single card for the blog home or a doorway instead of guessing.
-- This is mandatory, not optional: any time you name or recommend A Quiet Place, or name or recommend any live blog post, you MUST end that reply with the matching cards block. Never describe a product or post without its card. The block goes at the very end of your message, after your spoken reply.
+Never paste raw URLs, and never use markdown link formatting or square brackets. When a product or a blog post is relevant to what the visitor needs, simply mention it warmly by name in your reply. For the journal, name it as **A Quiet Place**. For a blog post, you can say there is a gentle read in The Sanctuary about that very thing, without naming a URL. A tappable card with the picture and the link is added automatically below your message, chosen from what the visitor asked, so you never need to add a link, a list, or any special block. Just speak naturally and name the thing. Never show a product in the same breath as distress, and keep replies card free during a handoff.
 
 --- KNOWLEDGE BASE ---
 
@@ -124,7 +112,7 @@ USING THE JOURNAL
 Print it at home (two pages fit on one A4 or US Letter sheet) or open the PDF in any annotator like GoodNotes, Notability, or Noteshelf and write with a finger or a stylus. The days are numbered but not tied to a calendar, so anyone can start when they are ready and skip a hard day without falling behind. There is no streak to break and no guilt for resting. What they write is completely private, theirs alone, and most note apps let you lock or password-protect a notebook. It is a lifetime-access download with no subscription and no expiry, so they can save it, back it up, reprint pages, or duplicate it digitally for a fresh start any time.
 
 BLOG RECOMMENDATIONS (The Sanctuary)
-When a visitor wants to read, feel understood, or learn about themselves, point them to one matching post. Share one warm line about it, then show it as a card (see SHOWING CARDS), rather than pasting the URL in your prose. The doorways are: The INFP Sanctuary https://sweetiespawprints.com/blogs/the-sanctuary/tagged/the-infp-sanctuary and The Sensitive Soul https://sweetiespawprints.com/blogs/the-sanctuary/tagged/the-sensitive-soul , and the blog home is https://sweetiespawprints.com/blogs/the-sanctuary .
+When a visitor wants to read, feel understood, or learn about themselves, point them to one matching post. Share one warm line about it in your own words, and a card with the link is added for you automatically, so never paste the URL in your prose. The doorways are: The INFP Sanctuary and The Sensitive Soul, and there is a blog home for everything else.
 A new post publishes every day, so this is a living list. Only ever share a link from the LIVE list below. Those are the only blog URLs that work right now. For any feeling that is not in the live list, or anything newer than it, do not guess or invent a link. Instead point the visitor to the blog home or the closest doorway above, and gently invite them to look around. Never paste a blog URL that is not in the live list, because unpublished posts will not open.
 
 LIVE posts, safe to share (match the feeling to the post):
@@ -152,17 +140,8 @@ A FEW VOICE EXAMPLES (patterns, not scripts)
 - "hi" -> Hi, and welcome. You're somewhere soft now. Are you looking for a journal, a gentle read, or just a place to land for a minute? I'm happy to help with any of it.
 - "are you a real person?" -> I'm Sweetie, a gentle guide here to help you find your way around. I'm not a human, but a real person reads and answers every email, usually within 2 to 3 days. Want me to point you to them?
 - "is the grief journal okay if it's my dog, not a person?" -> Yes, completely. Grief is grief, and **A Quiet Place** holds every kind of loss without ranking it. Your dog mattered, and so does this.
-[[CARDS]]
-product|A Quiet Place|https://sweetiespawprints.com/products/a-quiet-place-grief-journal
-[[/CARDS]]
 - "what are your products?" -> Right now there's one gentle companion: **A Quiet Place**, a 30-day grief journal for the quiet heart. It's an 82-page printable PDF you download instantly and keep forever. Would you like to know what's inside?
-[[CARDS]]
-product|A Quiet Place|https://sweetiespawprints.com/products/a-quiet-place-grief-journal
-[[/CARDS]]
-- "how do I know if I'm an INFP?" -> There's a gentle read for exactly that. It walks through the quiet signs softly, with no pressure to fit any box.
-[[CARDS]]
-blog|19 Quiet Signs You're an INFP|https://sweetiespawprints.com/blogs/the-sanctuary/signs-you-are-an-infp
-[[/CARDS]]
+- "how do I know if I'm an INFP?" -> There's a gentle read for exactly that in The Sanctuary. It walks through the quiet signs softly, with no pressure to fit any box.
 - "can you write my college essay?" -> That's a little outside my quiet corner here. I'm best at helping you find a journal or a gentle read in the sanctuary. Want me to point you toward something soft?`;
 
 /**
@@ -191,6 +170,50 @@ blog|19 Quiet Signs You're an INFP|https://sweetiespawprints.com/blogs/the-sanct
  *   Parenting as a sensitive mother:                   https://sweetiespawprints.com/blogs/the-sanctuary/gentle-parenting-sensitive-mom
  *   Creative block, cannot begin:                      https://sweetiespawprints.com/blogs/the-sanctuary/infp-creative-block-why-you-freeze
  */
+
+// Deterministic card matching. Given the visitor's latest message, decide which
+// product or blog cards to show, with no dependence on the model. Only LIVE
+// blog posts are listed here. Specific topics are checked before generic ones,
+// and the generic "infp" catch-all is last so it never steals a better match.
+const SANCTUARY = "https://sweetiespawprints.com/blogs/the-sanctuary/";
+const A_QUIET_PLACE = {
+  type: "product",
+  title: "A Quiet Place",
+  url: "https://sweetiespawprints.com/products/a-quiet-place-grief-journal",
+};
+const BLOG_RULES = [
+  { kw: ["infp vs infj", "infp or infj", "infj"], title: "INFP vs INFJ: A Gentle Guide", handle: "infp-vs-infj-gentle-guide" },
+  { kw: ["highly sensitive", "hsp", "sensitive person", "too sensitive"], title: "What Is a Highly Sensitive Person?", handle: "what-is-a-highly-sensitive-person" },
+  { kw: ["sensory overload", "too loud", "overstimulated", "overstimulation", "world feels too loud"], title: "HSP Sensory Overload", handle: "hsp-sensory-overload-why-the-world-feels-too-loud" },
+  { kw: ["burnout", "burned out", "burnt out", "depleted", "exhausted"], title: "INFP Burnout Recovery", handle: "infp-burnout-recovery" },
+  { kw: ["feel too much", "feel so deeply", "feel deeply", "feel everything", "too much emotion"], title: "Why INFPs Feel So Deeply", handle: "why-infps-feel-so-deeply" },
+  { kw: ["lonely", "no friends", "find my people", "my people", "isolated", "no one gets me"], title: "The Lonely INFP", handle: "the-lonely-infp-finding-your-people" },
+  { kw: ["career", "careers", " job ", "what work", "what job", "right job"], title: "Best Careers for INFPs", handle: "best-careers-for-infps" },
+  { kw: ["infp woman", "infp female", "infp girl", "as a woman"], title: "The INFP Female Experience", handle: "infp-female-experience-quiet-strength" },
+  { kw: ["energy", "drained", "running on empty", "recharge", "manage my energy"], title: "Introvert Energy Management", handle: "introvert-energy-management" },
+  { kw: ["solitude", "alone time", "need space", "time alone", "crave being alone"], title: "Solitude for Sensitive Souls", handle: "introvert-solitude-sensitive-souls" },
+  { kw: ["inner world", "imagination", "vivid inner", "daydream"], title: "The INFP Inner World", handle: "infp-inner-world" },
+  { kw: ["infp"], title: "19 Quiet Signs You're an INFP", handle: "signs-you-are-an-infp" },
+];
+const PRODUCT_KW = [
+  "product", "products", "what do you sell", "what do you have", "what do you offer",
+  "for sale", "buy ", "purchase", "the journal", "grief journal", "a quiet place",
+  "how much", "price", "cost", "grief", "grieving", "mourning", "bereave",
+  "loss", "lost my", "lost someone", "passed away", "passed on",
+];
+
+function matchCards(text) {
+  const t = " " + String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
+  const cards = [];
+  if (PRODUCT_KW.some((k) => t.includes(k))) cards.push(A_QUIET_PLACE);
+  for (const r of BLOG_RULES) {
+    if (r.kw.some((k) => t.includes(k))) {
+      cards.push({ type: "blog", title: r.title, url: SANCTUARY + r.handle });
+      break;
+    }
+  }
+  return cards.slice(0, 5);
+}
 
 export default {
   async fetch(request, env) {
@@ -271,26 +294,16 @@ export default {
         if (!crisis) handoff = true; // suppress handoff if crisis is present
       }
 
-      // Parse the cards block (products / blog posts to show as a carousel).
+      // Remove any stray cards block the model might still emit out of habit.
+      reply = reply.replace(/\[\[CARDS\]\]([\s\S]*?)\[\[\/CARDS\]\]/g, "").trim();
+
+      // Cards are now decided server-side from what the visitor actually asked,
+      // so they no longer depend on the model remembering a format. No cards
+      // during a distress moment or a handoff.
       let cards = [];
-      const cm = reply.match(/\[\[CARDS\]\]([\s\S]*?)\[\[\/CARDS\]\]/);
-      if (cm) {
-        reply = reply.replace(cm[0], "").trim();
-        if (!crisis) {
-          cards = cm[1]
-            .split("\n")
-            .map((l) => l.trim())
-            .filter(Boolean)
-            .map((line) => {
-              const p = line.split("|").map((s) => s.trim());
-              if (p.length >= 3 && (p[0] === "product" || p[0] === "blog") && /^https?:\/\//.test(p[2])) {
-                return { type: p[0], title: p[1], url: p[2] };
-              }
-              return null;
-            })
-            .filter(Boolean)
-            .slice(0, 5);
-        }
+      if (!crisis && !handoff) {
+        const lastUser = [...cleaned].reverse().find((m) => m.role === "user");
+        cards = matchCards(lastUser ? lastUser.content : "");
       }
 
       // Hard guarantee: no em dashes ever reach the visitor. Replace with a
