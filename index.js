@@ -56,8 +56,22 @@ Note: ordinary grief (losing a person or a pet, feeling low or tender) is not th
 WHEN TO BRING IN A REAL PERSON (orders and questions only, never distress)
 For anything you cannot answer from this knowledge base, anything about a specific order, a payment that needs checking, a refund, a duplicate purchase, or a download that did not arrive, point the visitor warmly to contact@sweetiespawprints.com, where Niza replies usually within 2 to 3 days. End that message with the exact marker [[HANDOFF]] on its own. Never use [[HANDOFF]] for distress. Distress uses [[CRISIS]] only.
 
-SHARING LINKS
-When you share a link, paste the full URL plainly, like https://sweetiespawprints.com/products/a-quiet-place-grief-journal. Do not use markdown link formatting or square brackets.
+FORMATTING
+You may use double asterisks to gently bold a name, like **A Quiet Place**. Keep formatting light and soft. Never use em dashes anywhere in your replies. Use commas, periods, colons, or parentheses instead. This is a hard rule.
+
+SHARING LINKS AND CARDS
+Do not paste raw URLs in your spoken reply, and do not use markdown link formatting or square brackets. Instead, when you recommend or list any products or blog posts, show them as tappable cards. After your short, warm reply, add a cards block in exactly this format, with nothing else inside it:
+[[CARDS]]
+product|A Quiet Place|https://sweetiespawprints.com/products/a-quiet-place-grief-journal
+blog|Name of the post|https://sweetiespawprints.com/blogs/the-sanctuary/the-post-handle
+[[/CARDS]]
+Rules for cards:
+- The first field is the word product or the word blog. The second is the name. The third is the full URL.
+- Show at most 5 cards, and only as many as truly fit the question.
+- Only use LIVE items with real URLs from this knowledge base. Never invent a URL, and never card a scheduled post that is not live yet.
+- When you show cards, keep your spoken reply short and warm and let the cards carry the links. Do not also list the URLs in the prose.
+- Never show cards during a distress moment, and never alongside a handoff. Those replies have no cards.
+- If nothing in the live list fits, you may show a single card for the blog home or a doorway instead of guessing.
 
 --- KNOWLEDGE BASE ---
 
@@ -109,7 +123,7 @@ USING THE JOURNAL
 Print it at home (two pages fit on one A4 or US Letter sheet) or open the PDF in any annotator like GoodNotes, Notability, or Noteshelf and write with a finger or a stylus. The days are numbered but not tied to a calendar, so anyone can start when they are ready and skip a hard day without falling behind. There is no streak to break and no guilt for resting. What they write is completely private, theirs alone, and most note apps let you lock or password-protect a notebook. It is a lifetime-access download with no subscription and no expiry, so they can save it, back it up, reprint pages, or duplicate it digitally for a fresh start any time.
 
 BLOG RECOMMENDATIONS (The Sanctuary)
-When a visitor wants to read, feel understood, or learn about themselves, point them to one matching post. Share one warm line about it and the plain URL. Blog home: https://sweetiespawprints.com/blogs/the-sanctuary . Two soft doorways: The INFP Sanctuary https://sweetiespawprints.com/blogs/the-sanctuary/tagged/the-infp-sanctuary and The Sensitive Soul https://sweetiespawprints.com/blogs/the-sanctuary/tagged/the-sensitive-soul .
+When a visitor wants to read, feel understood, or learn about themselves, point them to one matching post. Share one warm line about it, then show it as a card (see SHOWING CARDS), rather than pasting the URL in your prose. The doorways are: The INFP Sanctuary https://sweetiespawprints.com/blogs/the-sanctuary/tagged/the-infp-sanctuary and The Sensitive Soul https://sweetiespawprints.com/blogs/the-sanctuary/tagged/the-sensitive-soul , and the blog home is https://sweetiespawprints.com/blogs/the-sanctuary .
 A new post publishes every day, so this is a living list. Only ever share a link from the LIVE list below. Those are the only blog URLs that work right now. For any feeling that is not in the live list, or anything newer than it, do not guess or invent a link. Instead point the visitor to the blog home or the closest doorway above, and gently invite them to look around. Never paste a blog URL that is not in the live list, because unpublished posts will not open.
 
 LIVE posts, safe to share (match the feeling to the post):
@@ -245,13 +259,43 @@ export default {
         if (!crisis) handoff = true; // suppress handoff if crisis is present
       }
 
+      // Parse the cards block (products / blog posts to show as a carousel).
+      let cards = [];
+      const cm = reply.match(/\[\[CARDS\]\]([\s\S]*?)\[\[\/CARDS\]\]/);
+      if (cm) {
+        reply = reply.replace(cm[0], "").trim();
+        if (!crisis) {
+          cards = cm[1]
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((line) => {
+              const p = line.split("|").map((s) => s.trim());
+              if (p.length >= 3 && (p[0] === "product" || p[0] === "blog") && /^https?:\/\//.test(p[2])) {
+                return { type: p[0], title: p[1], url: p[2] };
+              }
+              return null;
+            })
+            .filter(Boolean)
+            .slice(0, 5);
+        }
+      }
+
+      // Hard guarantee: no em dashes ever reach the visitor. Replace with a
+      // comma. Also catch spaced en dashes, while leaving number ranges alone.
+      reply = reply
+        .replace(/\s*—\s*/g, ", ")
+        .replace(/\s+–\s+/g, ", ")
+        .replace(/ ,/g, ",")
+        .replace(/,\s*,/g, ",");
+
       if (!reply) {
         reply =
           "I want to get this right for you. You can reach a real person any time at contact@sweetiespawprints.com.";
         handoff = true;
       }
 
-      return json({ reply, handoff, crisis });
+      return json({ reply, handoff, crisis, cards });
     } catch (err) {
       return json({ error: "Server error", detail: String(err) }, 500);
     }
