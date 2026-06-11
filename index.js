@@ -61,6 +61,7 @@ You may use double asterisks to gently bold a name, like **A Quiet Place**. Keep
 
 SHARING LINKS AND CARDS
 Never paste raw URLs, and never use markdown link formatting or square brackets. When a product or a blog post is relevant to what the visitor needs, simply mention it warmly by name in your reply. For the journal, name it as **A Quiet Place**. For a blog post, you can say there is a gentle read in The Sanctuary about that very thing, without naming a URL. A tappable card with the picture and the link is added automatically below your message, chosen from what the visitor asked, so you never need to add a link, a list, or any special block. Just speak naturally and name the thing. Never show a product in the same breath as distress, and keep replies card free during a handoff.
+When a card is going to appear, keep your spoken reply to one or two short sentences. Warmly name the thing and stop, because the card carries the picture and the link, and the visitor can tap to see the rest. Do not list the price, the page count, or what is inside unless the visitor actually asks. It is better to end with a small, gentle question like "Would you like to know what's inside?" than to explain everything at once.
 
 --- KNOWLEDGE BASE ---
 
@@ -112,7 +113,7 @@ USING THE JOURNAL
 Print it at home (two pages fit on one A4 or US Letter sheet) or open the PDF in any annotator like GoodNotes, Notability, or Noteshelf and write with a finger or a stylus. The days are numbered but not tied to a calendar, so anyone can start when they are ready and skip a hard day without falling behind. There is no streak to break and no guilt for resting. What they write is completely private, theirs alone, and most note apps let you lock or password-protect a notebook. It is a lifetime-access download with no subscription and no expiry, so they can save it, back it up, reprint pages, or duplicate it digitally for a fresh start any time.
 
 BLOG RECOMMENDATIONS (The Sanctuary)
-When a visitor wants to read, feel understood, or learn about themselves, point them to one matching post. Share one warm line about it in your own words, and a card with the link is added for you automatically, so never paste the URL in your prose. The doorways are: The INFP Sanctuary and The Sensitive Soul, and there is a blog home for everything else.
+When a visitor wants to read, feel understood, or learn about themselves, a row of tappable cards for the matching posts is added automatically below your message. Because of this, never type out a list of post titles yourself, and never paste a URL. If they ask for one topic, give one warm sentence and let the single card carry it. If they ask broadly, for example "show me all the blogs about INFPs", do not enumerate them: say something gentle like "Here are a few gentle reads from The Sanctuary that might speak to you" and stop, because the cards beneath you already show them. Keep it to one or two sentences either way. The doorways are: The INFP Sanctuary and The Sensitive Soul, and there is a blog home for everything else.
 A new post publishes every day, so this is a living list. Only ever share a link from the LIVE list below. Those are the only blog URLs that work right now. For any feeling that is not in the live list, or anything newer than it, do not guess or invent a link. Instead point the visitor to the blog home or the closest doorway above, and gently invite them to look around. Never paste a blog URL that is not in the live list, because unpublished posts will not open.
 
 LIVE posts, safe to share (match the feeling to the post):
@@ -140,7 +141,7 @@ A FEW VOICE EXAMPLES (patterns, not scripts)
 - "hi" -> Hi, and welcome. You're somewhere soft now. Are you looking for a journal, a gentle read, or just a place to land for a minute? I'm happy to help with any of it.
 - "are you a real person?" -> I'm Sweetie, a gentle guide here to help you find your way around. I'm not a human, but a real person reads and answers every email, usually within 2 to 3 days. Want me to point you to them?
 - "is the grief journal okay if it's my dog, not a person?" -> Yes, completely. Grief is grief, and **A Quiet Place** holds every kind of loss without ranking it. Your dog mattered, and so does this.
-- "what are your products?" -> Right now there's one gentle companion: **A Quiet Place**, a 30-day grief journal for the quiet heart. It's an 82-page printable PDF you download instantly and keep forever. Would you like to know what's inside?
+- "what are your products?" -> Right now there's one gentle companion: **A Quiet Place**, a 30-day grief journal for the quiet heart. Would you like to know what's inside?
 - "how do I know if I'm an INFP?" -> There's a gentle read for exactly that in The Sanctuary. It walks through the quiet signs softly, with no pressure to fit any box.
 - "can you write my college essay?" -> That's a little outside my quiet corner here. I'm best at helping you find a journal or a gentle read in the sanctuary. Want me to point you toward something soft?`;
 
@@ -202,16 +203,63 @@ const PRODUCT_KW = [
   "loss", "lost my", "lost someone", "passed away", "passed on",
 ];
 
+// Foundational INFP reads, used to fill out a carousel when a visitor asks
+// broadly (for example "show me all the blogs about INFPs"). Ordered from most
+// to least foundational. All are live.
+const CURATED_BLOGS = [
+  "signs-you-are-an-infp",
+  "infp-vs-infj-gentle-guide",
+  "why-infps-feel-so-deeply",
+  "the-lonely-infp-finding-your-people",
+  "best-careers-for-infps",
+  "what-is-a-highly-sensitive-person",
+  "infp-female-experience-quiet-strength",
+];
+// Signals that the visitor wants a few reads, not just one.
+const MANY_KW = [
+  " all ", " blogs ", " posts ", " articles ", " reads ", " reading ",
+  " list ", " several ", " few ", " recommend", " everything ", " other reads ",
+  " more reads ", " what do you have ",
+];
+
+function blogCardByHandle(handle) {
+  const r = BLOG_RULES.find((x) => x.handle === handle);
+  return { type: "blog", title: r ? r.title : handle, url: SANCTUARY + handle };
+}
+
 function matchCards(text) {
   const t = " " + String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
   const cards = [];
   if (PRODUCT_KW.some((k) => t.includes(k))) cards.push(A_QUIET_PLACE);
+
+  // Every blog rule whose keywords appear, kept in rule order (specific first).
+  const matched = [];
   for (const r of BLOG_RULES) {
     if (r.kw.some((k) => t.includes(k))) {
-      cards.push({ type: "blog", title: r.title, url: SANCTUARY + r.handle });
-      break;
+      matched.push({ type: "blog", title: r.title, url: SANCTUARY + r.handle });
     }
   }
+
+  const wantsMany = MANY_KW.some((k) => t.includes(k));
+  const hasReadingWord = [
+    " blog ", " blogs ", " post ", " posts ", " article ", " articles ",
+    " read ", " reads ", " reading ",
+  ].some((k) => t.includes(k));
+
+  if (wantsMany && (matched.length || hasReadingWord || /infp|sensitive|introvert/.test(t))) {
+    // Lead with the specific matches, then top up with foundational reads so a
+    // broad request returns a real carousel of at least a few cards.
+    const out = matched.slice();
+    for (const handle of CURATED_BLOGS) {
+      if (out.length >= 5) break;
+      const c = blogCardByHandle(handle);
+      if (!out.some((x) => x.url === c.url)) out.push(c);
+    }
+    out.forEach((c) => cards.push(c));
+  } else if (matched.length) {
+    cards.push(matched[0]); // a focused question gets one focused card
+  }
+
   return cards.slice(0, 5);
 }
 
